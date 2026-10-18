@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block crumb %}Settings{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Settings</h1>
+    <p>Read-only view of the model, thresholds and data. Change thresholds in <code>config.py</code> and restart the app.</p>
+  </div>
+</div>
+
+<div class="grid-2">
+  <section class="panel">
+    <h2>Model</h2>
+    <table class="kv">
+      <tr><th>Algorithm</th><td>{{ artifact.algorithm }}</td></tr>
+      <tr><th>Version</th><td>{{ artifact.version }}</td></tr>
+      <tr><th>Trained at</th><td>{{ artifact.trained_at }}</td></tr>
+      <tr><th>Features used</th><td>{{ artifact.features|length }}</td></tr>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h2>Risk thresholds</h2>
+    <table class="kv">
+      <tr><th>High risk from</th><td>{{ '%.0f'|format(config.HIGH_THRESHOLD * 100) }}% failure probability ({{ config.RISK_TIMEFRAME.HIGH }})</td></tr>
+      <tr><th>Medium risk from</th><td>{{ '%.0f'|format(config.MEDIUM_THRESHOLD * 100) }}% failure probability ({{ config.RISK_TIMEFRAME.MEDIUM }})</td></tr>
+      <tr><th>Maintenance recommended when RUL below</th><td>{{ config.RUL_WARN }} readings</td></tr>
+      <tr><th>RUL horizon</th><td>{{ config.RUL_CAP }} readings</td></tr>
+    </table>
+  </section>
+</div>
+
+<div class="grid-2">
+  <section class="panel">
+    <h2>Database</h2>
+    <table class="kv">
+      <tr><th>File</th><td>{{ (db_path|replace('\\', '/')).split('/')|last }}</td></tr>
+      {% for table, n in counts.items() %}
+      <tr><th>{{ table }}</th><td>{{ n }} rows</td></tr>
+      {% endfor %}
+    </table>
+    {% if config.SHIFT_SEED_TO_NOW %}
+    <p class="muted small mt">Demo data is shifted so the newest reading is "now". Set <code>SHIFT_SEED_TO_NOW = False</code> in <code>config.py</code> when using real data.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <h2>Data drift</h2>
+    {% if drift %}
+    <table>
+      <thead><tr><th>Sensor</th><th class="num">Training mean</th><th class="num">Live mean</th><th class="num">Shift</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for d in drift %}
+        <tr>
+          <td>{{ d.label }}</td><td class="num">{{ d.train_mean }}</td><td class="num">{{ d.live_mean }}</td>
+          <td class="num">{{ d.shift }}</td><td><span class="badge badge-{{ d.status|lower }}">{{ d.status|upper }}</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="muted small mt">Shift is the difference between recent and training averages, in training standard deviations. Above 1.0 means the model may need retraining.</p>
+    {% else %}
+    <p class="empty">Not enough live data for a drift check yet.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

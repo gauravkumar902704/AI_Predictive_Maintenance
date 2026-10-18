@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% from "_macros.html" import risk_badge, health_badge, status_badge, anomaly_cell, contribution_bars %}
+{% block title %}Machine {{ machine.machine_id }}{% endblock %}
+{% block crumb %}<a href="{{ url_for('machines') }}">Machines</a> / {{ machine.machine_id }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Machine {{ machine.machine_id }}</h1>
+    <p>Type {{ machine.machine_type }} &middot; {{ machine.model_name }} &middot; installed {{ machine.install_date }}</p>
+  </div>
+  <div class="btn-row">
+    <a class="btn" href="{{ url_for('predict', machine=machine.machine_id) }}">Run new prediction</a>
+    <a class="btn btn-secondary" href="{{ url_for('maintenance', machine=machine.machine_id) }}">Create maintenance record</a>
+  </div>
+</div>
+
+{% if latest %}
+<section class="hero {{ latest.risk_level|lower }}" aria-label="Current status">
+  <div>
+    <div class="k">Status</div>
+    <div class="v">{{ health_badge(extra.health) }} {{ risk_badge(latest.risk_level) }}</div>
+    <div class="muted small">Checked {{ latest.prediction_time|shorttime }}</div>
+  </div>
+  <div>
+    <div class="k">Failure probability</div>
+    <div class="v big">{{ latest.failure_probability|percent }}</div>
+    <div class="meter {{ latest.risk_level|lower }}"><span style="width: {{ (latest.failure_probability * 100)|round(1) }}%"></span></div>
+  </div>
+  <div>
+    <div class="k">Predicted failure</div>
+    <div class="v">{% if latest.risk_level == 'LOW' %}None expected{% else %}{{ latest.likely_failure_type }}{% endif %}</div>
+    <div class="muted small">{{ extra.action }}</div>
+  </div>
+  <div>
+    <div class="k">Maintenance priority</div>
+    <div class="v"><span class="badge badge-{{ extra.priority|lower }}">{{ extra.priority|upper }}</span></div>
+  </div>
+</section>
+
+{% if latest.is_anomaly %}
+<div class="notice notice-warn" role="alert"><strong>Abnormal operating behaviour detected</strong>
+  (anomaly level {{ latest.anomaly_level }}, score {{ '%.2f'|format(latest.anomaly_score or 0) }}). Check the sensor trends below.</div>
+{% endif %}
+
+<div class="grid-2">
+  <section class="panel">
+    <h2>Why is this machine at risk?</h2>
+    {% if latest.top_factors %}
+      {{ contribution_bars(latest.top_factors) }}
+    {% else %}
+      <p class="empty">{% if latest.risk_level == 'LOW' %}Risk is low, so there is nothing to explain.{% else %}No explanation was stored for this prediction.{% endif %}</p>
+    {% endif %}
+  </section>
+  <section class="panel rul">
+    <h2>Remaining useful life <span class="muted small">(experimental)</span></h2>
+    <div class="num">{{ latest.estimated_rul }} <span class="muted small">readings</span></div>
+    <div class="meter {{ 'low' if extra.rul_status == 'No immediate action' else 'high' }}"><span style="width: {{ extra.rul_percent }}%"></span></div>
+    <p>{% if extra.rul_status == 'Maintenance recommended' %}<strong>Maintenance recommended</strong>{% else %}No immediate action{% endif %}</p>
+    <p class="muted small">RUL is capped at a fixed horizon and is less accurate than the failure prediction.</p>
+  </section>
+</div>
+{% else %}
+<div class="notice notice-info">No predictions yet for this machine. <a href="{{ url_for('predict', machine=machine.machine_id) }}">Run the first one.</a></div>
+{% endif %}
+
+<h2>Sensor trends <span class="muted small">(latest 60 readings)</span></h2>
+<section class="sensor-grid">
+  {% for s in sensors %}
+  <div class="sensor">
+    <div class="name">{{ s.label }}</div>
+    <div class="val">{{ s.latest if s.latest is not none else '-' }} <small>{{ s.unit }}</small></div>
+    {{ s.chart }}
+    <div class="dir">{{ s.direction }}</div>
+  </div>
+  {% endfor %}
+</section>
+
+{% if chart %}
+<section class="panel">
+  <h2>Failure probability history</h2>
+  {{ chart }}
+</section>
+{% endif %}
+
+<div class="grid-2">
+  <section class="panel">
+    <h2>Recent predictions</h2>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Date</th><th>Risk</th><th class="num">Probability</th><th>Anomaly</th></tr></thead>
+      <tbody>
+      {% for p in predictions[:8] %}
+        <tr>
+          <td>{{ p.prediction_time|shorttime }}</td>
+          <td>{{ risk_badge(p.risk_level) }}</td>
+          <td class="num">{{ p.failure_probability|percent }}</td>
+          <td>{{ anomaly_cell(p.anomaly_level, p.is_anomaly, p.anomaly_score) }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="empty">No predictions yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p class="small mt"><a href="{{ url_for('history', machine=machine.machine_id) }}">Full prediction history</a></p>
+  </section>
+
+  <section class="panel">
+    <h2>Maintenance records</h2>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Scheduled</th><th>Action</th><th>Priority</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for o in orders %}
+        <tr>
+          <td>{{ o.scheduled_date or o.date }}</td><td>{{ o.action }}</td>
+          <td>{{ o.priority or '-' }}</td><td>{{ status_badge(o.status) }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="empty">No maintenance records yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+</div>
+
+<section class="panel">
+  <h2>Past failures</h2>
+  <table>
+    <thead><tr><th>Time</th><th>Failure type</th></tr></thead>
+    <tbody>
+    {% for f in failures %}
+      <tr><td>{{ f.timestamp|shorttime }}</td><td>{{ f.failure_type }}</td></tr>
+    {% else %}
+      <tr><td colspan="2" class="empty">No failures recorded.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

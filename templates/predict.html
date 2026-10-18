@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Predict Health{% endblock %}
+{% block crumb %}Predict machine health{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Predict Machine Health</h1>
+    <p>Pick a machine and enter its current sensor readings. The model also looks at that machine's recent readings to judge the trend.</p>
+  </div>
+</div>
+
+{% if errors %}
+<div class="notice notice-error" role="alert">
+  <strong>Please fix the following:</strong>
+  <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('predict') }}" class="panel" id="predict-form" novalidate>
+  <h2>Machine</h2>
+  <div class="form-grid">
+    <div class="field">
+      <label for="machine_id">Select machine</label>
+      <select id="machine_id" name="machine_id" required>
+        <option value="" {{ 'selected' if not form.get('machine_id') }} disabled>Choose a machine...</option>
+        {% for m in machines %}
+        <option value="{{ m }}" {{ 'selected' if form.get('machine_id') == m }}>{{ m }}</option>
+        {% endfor %}
+        <option value="__new__" {{ 'selected' if form.get('machine_id') == '__new__' }}>+ New machine</option>
+      </select>
+    </div>
+    <div class="field" id="new-machine-id">
+      <label for="new_machine_id">New machine ID</label>
+      <input id="new_machine_id" name="new_machine_id" value="{{ form.get('new_machine_id', '') }}" placeholder="e.g. M051" maxlength="30">
+    </div>
+    <div class="field" id="new-machine-type">
+      <label for="machine_type">Machine type <span class="hint">(new machines only)</span></label>
+      <select id="machine_type" name="machine_type">
+        {% for t in ['L', 'M', 'H'] %}<option value="{{ t }}" {{ 'selected' if form.get('machine_type', 'L') == t }}>{{ t }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <h2>Sensor inputs</h2>
+  <p class="muted small" id="prefill-note">Values are filled from the machine's latest reading. Change them to test a what-if scenario.</p>
+  <p class="muted small">Temperatures are in Kelvin (K = &deg;C + 273.15), the unit used in the dataset. For example, 300 K is about 27 &deg;C and 310 K is about 37 &deg;C.</p>
+  <div class="form-grid">
+    <div class="field">
+      <label for="air_temperature">Air temperature <span class="hint">(optional)</span></label>
+      <div class="input-unit"><input id="air_temperature" name="air_temperature" type="number" step="any" value="{{ form.get('air_temperature', '') }}" placeholder="300.2"><span>K</span></div>
+    </div>
+    <div class="field">
+      <label for="temperature">Process temperature</label>
+      <div class="input-unit"><input id="temperature" name="temperature" type="number" step="any" value="{{ form.get('temperature', '') }}" placeholder="310.4" required><span>K</span></div>
+    </div>
+    <div class="field">
+      <label for="rotational_speed">Rotational speed</label>
+      <div class="input-unit"><input id="rotational_speed" name="rotational_speed" type="number" step="any" value="{{ form.get('rotational_speed', '') }}" placeholder="1450" required><span>rpm</span></div>
+    </div>
+    <div class="field">
+      <label for="torque">Torque</label>
+      <div class="input-unit"><input id="torque" name="torque" type="number" step="any" value="{{ form.get('torque', '') }}" placeholder="42.5" required><span>Nm</span></div>
+    </div>
+    <div class="field">
+      <label for="tool_wear">Tool wear</label>
+      <div class="input-unit"><input id="tool_wear" name="tool_wear" type="number" step="any" value="{{ form.get('tool_wear', '') }}" placeholder="180" required><span>min</span></div>
+    </div>
+  </div>
+
+  <button type="submit" class="btn">Analyze machine health</button>
+</form>
+
+{# Har machine ki latest reading, form auto-fill ke liye #}
+<script type="application/json" id="latest-readings">{{ latest|tojson }}</script>
+<script>
+(function () {
+  var select = document.getElementById('machine_id');
+  var newId = document.getElementById('new-machine-id');
+  var newType = document.getElementById('new-machine-type');
+  var fields = ['air_temperature', 'temperature', 'rotational_speed', 'torque', 'tool_wear'];
+  var latest = {};
+  try { latest = JSON.parse(document.getElementById('latest-readings').textContent); } catch (e) {}
+
+  function sync(fill) {
+    var isNew = select.value === '__new__';
+    newId.hidden = !isNew;
+    newType.hidden = !isNew;
+    if (fill && latest[select.value]) {
+      fields.forEach(function (f) {
+        var v = latest[select.value][f];
+        if (v !== undefined && v !== null) document.getElementById(f).value = Math.round(v * 100) / 100;
+      });
+    }
+  }
+  select.addEventListener('change', function () { sync(true); });
+  sync(false);
+})();
+</script>
+<noscript><style>#new-machine-id, #new-machine-type { display: block !important; }</style></noscript>
+{% endblock %}

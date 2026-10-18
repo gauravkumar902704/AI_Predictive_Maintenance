@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% from "_macros.html" import risk_badge, status_badge %}
+{% block title %}Maintenance{% endblock %}
+{% block crumb %}Maintenance management{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Maintenance Management</h1>
+    <p>Turn a prediction into a maintenance record and track it until it is completed.</p>
+  </div>
+</div>
+
+<section class="cards" style="grid-template-columns: repeat(3, 1fr); max-width: 760px" aria-label="Maintenance summary">
+  <div class="card grey">
+    <div class="label">Maintenance due</div><div class="num">{{ summary.maintenance_due }}</div>
+    <div class="sub">At-risk, no open record</div>
+  </div>
+  <div class="card yellow">
+    <div class="label">Open records</div><div class="num">{{ summary.open_orders }}</div>
+    <div class="sub">Scheduled, not completed</div>
+  </div>
+  <div class="card green">
+    <div class="label">Completed</div><div class="num">{{ summary.completed_orders }}</div>
+    <div class="sub">All time</div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Machines needing maintenance <span class="muted small">(medium or high risk)</span></h2>
+  {% if attention %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Machine</th><th>Risk</th><th>Issue</th><th>Recommended action</th><th>Open records</th><th></th></tr></thead>
+    <tbody>
+    {% for m in attention %}
+      <tr>
+        <td><a href="{{ url_for('machine_page', machine_id=m.machine_id) }}"><strong>{{ m.machine_id }}</strong></a></td>
+        <td>{{ risk_badge(m.risk_level) }}</td>
+        <td>{{ m.likely_failure_type or '-' }}</td>
+        <td>{{ m.action }}</td>
+        <td>{{ m.open_orders or '-' }}</td>
+        <td class="right"><a class="btn btn-secondary btn-small" href="{{ url_for('maintenance', machine=m.machine_id) }}#new-record">Create record</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="empty">No machine is at medium or high risk right now.</p>
+  {% endif %}
+</section>
+
+{% if errors %}
+<div class="notice notice-error" role="alert">
+  <strong>Please fix the following:</strong>
+  <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('maintenance') }}" class="panel" id="new-record">
+  <h2>Create maintenance record</h2>
+  <div class="form-grid">
+    <div class="field">
+      <label for="machine_id">Machine</label>
+      <select id="machine_id" name="machine_id" required>
+        <option value="" disabled {{ 'selected' if not form.get('machine_id') }}>Select a machine...</option>
+        {% for m in machines %}
+        <option value="{{ m.machine_id }}" {{ 'selected' if form.get('machine_id') == m.machine_id }}>
+          {{ m.machine_id }}{% if m.risk_level %} ({{ m.risk_level|lower }} risk){% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="issue">Issue <span class="hint">(optional)</span></label>
+      <input id="issue" name="issue" maxlength="100" value="{{ form.get('issue', '') }}" placeholder="e.g. Heat Dissipation Failure">
+    </div>
+    <div class="field">
+      <label for="priority">Priority</label>
+      <select id="priority" name="priority">
+        {% for p in priorities %}<option value="{{ p }}" {{ 'selected' if form.get('priority', 'Medium') == p }}>{{ p }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="scheduled_date">Scheduled date</label>
+      <input id="scheduled_date" name="scheduled_date" type="date" value="{{ form.get('scheduled_date', '') }}">
+    </div>
+    <div class="field">
+      <label for="technician">Technician</label>
+      <select id="technician" name="technician">
+        {% for t in technicians %}<option value="{{ t }}" {{ 'selected' if form.get('technician') == t }}>{{ t }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field wide">
+      <label for="action">Action to take</label>
+      <input id="action" name="action" maxlength="200" required value="{{ form.get('action', '') }}" placeholder="e.g. Inspect cooling system and airflow">
+    </div>
+    <div class="field wide">
+      <label for="notes">Notes <span class="hint">(optional)</span></label>
+      <textarea id="notes" name="notes" maxlength="500">{{ form.get('notes', '') }}</textarea>
+    </div>
+  </div>
+  <button type="submit" class="btn">Save maintenance</button>
+</form>
+
+<section class="panel">
+  <h2>Maintenance records</h2>
+  <div class="chips" aria-label="Status filter">
+    <a class="chip {{ 'on' if not status_filter }}" href="{{ url_for('maintenance') }}#records">All</a>
+    <a class="chip {{ 'on' if status_filter == 'open' }}" href="{{ url_for('maintenance', status='open') }}#records">Open</a>
+    <a class="chip {{ 'on' if status_filter == 'completed' }}" href="{{ url_for('maintenance', status='completed') }}#records">Completed</a>
+  </div>
+  <div class="table-wrap" id="records">
+  <table>
+    <thead><tr>
+      <th>Machine</th><th>Issue</th><th>Action</th><th>Priority</th><th>Scheduled</th>
+      <th>Technician</th><th>Status</th><th></th>
+    </tr></thead>
+    <tbody>
+    {% for o in orders %}
+      <tr>
+        <td><a href="{{ url_for('machine_page', machine_id=o.machine_id) }}"><strong>{{ o.machine_id }}</strong></a></td>
+        <td>{{ o.issue or '-' }}</td>
+        <td>{{ o.action }}{% if o.notes %}<div class="muted small">{{ o.notes }}</div>{% endif %}</td>
+        <td><span class="badge badge-{{ (o.priority or 'medium')|lower }}">{{ (o.priority or 'Medium')|upper }}</span></td>
+        <td>{{ o.scheduled_date or o.date }}</td>
+        <td>{{ o.technician or 'Unassigned' }}</td>
+        <td>{{ status_badge(o.status) }}</td>
+        <td class="right">
+          {% if o.status != 'Completed' %}
+          <form method="post" action="{{ url_for('maintenance_complete', order_id=o.maintenance_id) }}">
+            <input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}#records">
+            <button class="btn btn-secondary btn-small" type="submit">Mark completed</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="8" class="empty">No maintenance records yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

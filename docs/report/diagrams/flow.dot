@@ -1,0 +1,10 @@
+digraph G { rankdir=TB; bgcolor="white"; nodesep=0.35; ranksep=0.4;
+node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, color="#334155", fillcolor="#EFF6FF", margin="0.16,0.09"];
+edge [color="#475569", fontname="Helvetica", fontsize=9];
+s [label="Start", shape=oval, fillcolor="#DCFCE7"]; in [label="User enters sensor reading\n(machine, temperatures, speed, torque, wear)", shape=parallelogram];
+v [label="Input valid?", shape=diamond, fillcolor="#FEF3C7"]; err [label="Show friendly error", fillcolor="#FEE2E2"];
+h [label="Fetch last readings of machine from DB"]; f [label="Build features\n(same function as training)"];
+m [label="Run models:\nfailure probability, anomaly,\nfailure type, RUL"]; x [label="Is risk >= MEDIUM?", shape=diamond, fillcolor="#FEF3C7"];
+ex [label="Compute explanation\n(sensor-group what-if)"]; r [label="Apply rules:\nrisk level, health, priority, action"];
+sv [label="Save reading + prediction in DB"]; out [label="Show result page\n(+ Create maintenance record)", shape=parallelogram]; e [label="End", shape=oval, fillcolor="#DCFCE7"];
+s->in->v; v->err [label="No"]; err->in [style=dashed]; v->h [label="Yes"]; h->f->m->x; x->ex [label="Yes"]; x->r [label="No"]; ex->r; r->sv->out->e; }

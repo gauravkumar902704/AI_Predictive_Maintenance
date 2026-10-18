@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% from "_macros.html" import risk_badge, health_badge, anomaly_cell %}
+{% block title %}Machines{% endblock %}
+{% block crumb %}Machines{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Machines</h1>
+    <p>{{ machines|length }} of {{ total }} machines shown, highest failure risk first.</p>
+  </div>
+</div>
+
+<div class="chips" aria-label="Risk filter">
+  <a class="chip {{ 'on' if not risk and not anomaly_only }}" href="{{ url_for('machines') }}">All</a>
+  <a class="chip {{ 'on' if risk == 'HIGH' }}" href="{{ url_for('machines', risk='HIGH') }}">High risk</a>
+  <a class="chip {{ 'on' if risk == 'MEDIUM' }}" href="{{ url_for('machines', risk='MEDIUM') }}">Medium risk</a>
+  <a class="chip {{ 'on' if risk == 'LOW' }}" href="{{ url_for('machines', risk='LOW') }}">Healthy</a>
+  <a class="chip {{ 'on' if anomaly_only }}" href="{{ url_for('machines', anomaly=1) }}">Abnormal behaviour</a>
+</div>
+
+<form class="filters" method="get" action="{{ url_for('machines') }}">
+  <div>
+    <label for="q">Search machine ID</label>
+    <input id="q" name="q" value="{{ q }}" placeholder="e.g. M023">
+  </div>
+  <div>
+    <label for="risk">Risk level</label>
+    <select id="risk" name="risk">
+      <option value="">All</option>
+      {% for r in ['HIGH', 'MEDIUM', 'LOW'] %}<option value="{{ r }}" {{ 'selected' if risk == r }}>{{ r }}</option>{% endfor %}
+    </select>
+  </div>
+  <label class="check"><input type="checkbox" name="anomaly" value="1" {{ 'checked' if anomaly_only }}> Abnormal only</label>
+  <button class="btn btn-small" type="submit">Apply</button>
+</form>
+
+<section class="panel">
+  <div class="table-wrap">
+  <table>
+    <thead><tr>
+      <th>Machine</th><th>Type</th><th>Health</th><th>Risk</th><th class="num">Failure probability</th>
+      <th>Anomaly</th><th class="num">Est. RUL</th><th>Likely failure</th><th>Open orders</th><th>Last checked</th>
+    </tr></thead>
+    <tbody>
+    {% for m in machines %}
+      <tr>
+        <td><a href="{{ url_for('machine_page', machine_id=m.machine_id) }}"><strong>{{ m.machine_id }}</strong></a></td>
+        <td>{{ m.machine_type }}</td>
+        <td>{{ health_badge(m.health) }}</td>
+        <td>{{ risk_badge(m.risk_level) }}</td>
+        <td class="num">{{ m.failure_probability|percent }}</td>
+        <td>{{ anomaly_cell(m.anomaly_level, m.is_anomaly, m.anomaly_score) }}</td>
+        <td class="num">{% if m.estimated_rul is not none %}{{ m.estimated_rul }}{% else %}-{% endif %}</td>
+        <td>{% if m.risk_level in ('HIGH', 'MEDIUM') %}{{ m.likely_failure_type or '-' }}{% else %}-{% endif %}</td>
+        <td>{{ m.open_orders or '-' }}</td>
+        <td class="small">{{ m.prediction_time|shorttime }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="10" class="empty">No machines match these filters.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,52 @@
+{# _macros.html - baar baar use hone wale chhote UI pieces #}
+
+{% macro risk_badge(level) -%}
+  {%- if level -%}<span class="badge badge-{{ level|lower }}">{{ level }}</span>{%- else -%}<span class="muted">-</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro health_badge(health) -%}
+  <span class="badge badge-{{ (health or 'unknown')|lower }}">{{ health or 'UNKNOWN' }}</span>
+{%- endmacro %}
+
+{% macro status_badge(status) -%}
+  <span class="badge badge-{{ (status or 'scheduled')|lower }}">{{ status or 'Scheduled' }}</span>
+{%- endmacro %}
+
+{% macro anomaly_cell(level, is_anomaly, score) -%}
+  {%- if is_anomaly -%}
+    <span class="badge badge-{{ (level or 'medium')|lower }}">{{ level or 'MEDIUM' }}</span>
+    {%- if score is not none %} <span class="muted small">({{ '%.2f'|format(score) }})</span>{% endif -%}
+  {%- elif is_anomaly is none -%}<span class="muted">-</span>
+  {%- else -%}<span class="muted">Normal</span>{%- endif -%}
+{%- endmacro %}
+
+{# "Why is this machine at risk?" - sensor groups ka hissa #}
+{% macro contribution_bars(factors) %}
+  {% if factors %}
+  <ul class="contrib">
+    {% for f in factors %}
+    <li>
+      <span class="name">{{ f.name or f.feature }}
+        {% if f.value is defined and f.typical is defined %}
+        <small>{{ f.direction }}: {{ f.value }}{% if f.unit %} {{ f.unit }}{% endif %} (typical {{ f.typical }})</small>
+        {% endif %}
+      </span>
+      <span class="track" role="img" aria-label="{{ f.share }} percent"><span style="width: {{ f.share or 0 }}%"></span></span>
+      <span class="pct">{{ '%.0f'|format(f.share or 0) }}%</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">No sensor group is pushing the failure risk up for this reading.</p>
+  {% endif %}
+{% endmacro %}
+
+{% macro page_head(title, subtitle='') %}
+<div class="page-head">
+  <div>
+    <h1>{{ title }}</h1>
+    {% if subtitle %}<p>{{ subtitle }}</p>{% endif %}
+  </div>
+  {{ caller() if caller else '' }}
+</div>
+{% endmacro %}

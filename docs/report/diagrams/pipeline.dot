@@ -1,0 +1,7 @@
+digraph G { rankdir=TB; bgcolor="white"; nodesep=0.35; ranksep=0.5; newrank=true;
+node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, color="#334155", fillcolor="#EFF6FF", margin="0.16,0.1"];
+edge [color="#475569"];
+a [label="Raw CSV\n(10,000 rows,\n50 machines)"]; b [label="Cleaning\n(duplicates, ranges,\nmissing values)"]; c [label="Feature\nEngineering\n(17 features,\npast data only)"];
+d [label="Time-based Split\n(75% train /\n25% test)", fillcolor="#FEF3C7"]; e [label="Model Comparison\nLR, DT, RF,\nBoosted trees", fillcolor="#FEF3C7"];
+f [label="Evaluation\nPrecision, Recall, F1,\nROC-AUC, PR-AUC", fillcolor="#FEF3C7"]; g [label="Extra Models\nAnomaly, Failure type,\nRUL", fillcolor="#FEF3C7"]; h [label="Save Artifact\n(.joblib, metrics.json,\nfigures)", fillcolor="#DCFCE7"]; i [label="Flask App\n(loads artifact)", fillcolor="#DCFCE7"];
+{rank=same; a; b; c; d;} {rank=same; e; f; g; h; i;} a->b->c->d; e->f->g->h->i; d->e [constraint=true]; }

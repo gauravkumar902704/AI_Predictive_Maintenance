@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% from "_macros.html" import risk_badge %}
+{% block title %}Dashboard{% endblock %}
+{% block crumb %}Machine health overview{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Dashboard</h1>
+    <p>Live view of machine health, failure risk and maintenance workload.</p>
+  </div>
+  <div class="btn-row">
+    <a class="btn" href="{{ url_for('predict') }}">Predict machine health</a>
+  </div>
+</div>
+
+<section class="cards" aria-label="Summary">
+  <a class="card" href="{{ url_for('machines') }}">
+    <div class="label">Total machines</div><div class="num">{{ summary.total_machines }}</div>
+    <div class="sub">Being monitored</div>
+  </a>
+  <a class="card green" href="{{ url_for('machines', risk='LOW') }}">
+    <div class="label">Healthy</div><div class="num">{{ summary.healthy }}</div>
+    <div class="sub">Low failure risk</div>
+  </a>
+  <a class="card yellow" href="{{ url_for('machines', risk='MEDIUM') }}">
+    <div class="label">Medium risk</div><div class="num">{{ summary.medium }}</div>
+    <div class="sub">Inspect soon</div>
+  </a>
+  <a class="card red" href="{{ url_for('machines', risk='HIGH') }}">
+    <div class="label">High risk</div><div class="num">{{ summary.high }}</div>
+    <div class="sub">Inspect immediately</div>
+  </a>
+  <a class="card" href="{{ url_for('history') }}">
+    <div class="label">Predictions today</div><div class="num">{{ summary.predictions_today }}</div>
+    <div class="sub">Since midnight</div>
+  </a>
+  <a class="card grey" href="{{ url_for('maintenance') }}">
+    <div class="label">Maintenance due</div><div class="num">{{ summary.maintenance_due }}</div>
+    <div class="sub">At-risk, no open order</div>
+  </a>
+</section>
+
+<div class="grid-2-1">
+  <section class="panel">
+    <h2>Risk trend</h2>
+    {{ trend_chart }}
+    <p class="muted small">Share of predictions at medium or high risk, per hour.</p>
+  </section>
+  <section class="panel">
+    <h2>Machine health</h2>
+    {{ health_donut }}
+    <p class="small mt">
+      {% if summary.anomalies %}<a href="{{ url_for('anomalies') }}">{{ summary.anomalies }} machine{{ 's' if summary.anomalies != 1 }} with abnormal behaviour</a>{% else %}No abnormal behaviour detected{% endif %}.
+      Data drift: <a href="{{ url_for('settings') }}">{{ drift_status }}</a>.
+    </p>
+  </section>
+</div>
+
+<section class="panel">
+  <h2>Machines needing attention
+    <span class="muted small">({{ attention_total }} at medium or high risk{% if attention_total > attention|length %}, top {{ attention|length }} shown{% endif %})</span>
+  </h2>
+  {% if attention %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr>
+      <th>Machine</th><th>Risk</th><th class="num">Failure probability</th><th>Likely failure</th>
+      <th>Recommended action</th><th></th>
+    </tr></thead>
+    <tbody>
+    {% for m in attention %}
+      <tr>
+        <td><a href="{{ url_for('machine_page', machine_id=m.machine_id) }}"><strong>{{ m.machine_id }}</strong></a></td>
+        <td>{{ risk_badge(m.risk_level) }}</td>
+        <td class="num">{{ m.failure_probability|percent }}</td>
+        <td>{{ m.likely_failure_type or '-' }}</td>
+        <td>{{ m.action }}</td>
+        <td class="right"><a class="btn btn-secondary btn-small" href="{{ url_for('maintenance', machine=m.machine_id) }}">Schedule</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="empty">All machines are currently at low risk.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h2>Recent high-risk alerts</h2>
+  {% if alerts %}
+  <ul class="plain">
+    {% for a in alerts %}
+    <li>
+      <a href="{{ url_for('machine_page', machine_id=a.machine_id) }}"><strong>{{ a.machine_id }}</strong></a>
+      reached {{ a.failure_probability|percent }} failure probability
+      {% if a.likely_failure_type %}(likely: {{ a.likely_failure_type }}){% endif %}
+      <span class="muted small">&middot; {{ a.prediction_time|shorttime }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">No high-risk alerts so far.</p>
+  {% endif %}
+</section>
+{% endblock %}

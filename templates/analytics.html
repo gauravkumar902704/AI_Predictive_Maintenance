@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Analytics{% endblock %}
+{% block crumb %}Analytics{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Analytics</h1>
+    <p>Operational view of failures and risk across all machines.</p>
+  </div>
+</div>
+
+<div class="grid-2">
+  <section class="panel">
+    <h2>Failure distribution <span class="muted small">(past failure events)</span></h2>
+    {{ failure_donut }}
+  </section>
+  <section class="panel">
+    <h2>Risk distribution <span class="muted small">(machines, latest prediction)</span></h2>
+    {{ risk_bars }}
+  </section>
+</div>
+
+<section class="panel">
+  <h2>Machine health trend</h2>
+  {{ trend_chart }}
+  <p class="muted small">Share of predictions at medium or high risk, per hour.</p>
+</section>
+
+<section class="panel">
+  <h2>Expected failure types <span class="muted small">(machines at medium or high risk now)</span></h2>
+  {{ issue_bars }}
+</section>
+{% endblock %}

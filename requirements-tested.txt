@@ -1,0 +1,6 @@
+# Versions jin par ye project chalakar test kiya gaya
+# (pip install -r requirements.txt se naye versions bhi chalenge)
+Python 3.13 / 3.10+
+pandas==3.0.5
+numpy==2.5.3
+scikit-learn==1.9.1

@@ -1,0 +1,23 @@
+digraph G { rankdir=TB; bgcolor="white"; fontname="Helvetica"; nodesep=0.3; ranksep=0.5; newrank=true;
+node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, color="#334155", fillcolor="#EFF6FF", margin="0.18,0.1"];
+edge [color="#475569", fontname="Helvetica", fontsize=9];
+subgraph cluster_ui { label="Presentation Layer"; style="rounded,dashed"; color="#94A3B8"; fontsize=12;
+ ui [label="Web Browser\n(Dashboard, Predict, Machines,\nAnalytics, Anomalies, Maintenance,\nHistory, Model, Settings)", fillcolor="#DBEAFE"]; }
+subgraph cluster_app { label="Application Layer (Flask - app.py)"; style="rounded,dashed"; color="#94A3B8"; fontsize=12;
+ routes [label="Routes + REST API\n(/predict, /api/*)", fillcolor="#DCFCE7"];
+ val [label="Input Validation\n(preprocessing.validate_reading)", fillcolor="#DCFCE7"];
+ feat [label="Feature Engineering\n(preprocessing.add_features)", fillcolor="#DCFCE7"];
+ infer [label="Inference + Explanation\n(model_utils.predict_reading)", fillcolor="#DCFCE7"];
+ rules [label="Business Rules\n(status.py: risk, health, action)", fillcolor="#DCFCE7"]; }
+subgraph cluster_ml { label="ML Artifacts (models/*.joblib)"; style="rounded,dashed"; color="#94A3B8"; fontsize=12;
+ clf [label="Failure Classifier\n(Boosted trees)", fillcolor="#FEF3C7"];
+ typ [label="Failure-Type Model\n(Random Forest, failure rows only)", fillcolor="#FEF3C7"];
+ iso [label="Anomaly Detector\n(Isolation Forest)", fillcolor="#FEF3C7"];
+ rul [label="RUL Regressor\n(Random Forest)", fillcolor="#FEF3C7"]; }
+subgraph cluster_data { label="Data Layer"; style="rounded,dashed"; color="#94A3B8"; fontsize=12;
+ db [label="SQLite Database\n(machines, sensor_readings,\npredictions, maintenance, ...)", shape=cylinder, fillcolor="#FCE7F3"];
+ csv [label="CSV Dataset\n(data/raw)", shape=note, fillcolor="#FCE7F3"]; }
+ui -> routes [label="HTTP"]; routes -> val; val -> feat; feat -> infer; infer -> rules; rules -> routes [label="result"]; routes -> ui [label="HTML / JSON"];
+infer -> clf; infer -> typ; infer -> iso; infer -> rul;
+feat -> db [label="history", dir=both]; routes -> db [label="save / read", dir=both];
+csv -> clf [label="src.train", style=dashed]; }

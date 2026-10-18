@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Model Performance{% endblock %}
+{% block crumb %}Model performance{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Model Performance</h1>
+    <p>How the models were evaluated, and how the selected model compares with simpler baselines.</p>
+  </div>
+</div>
+
+{% if not metrics %}
+<div class="notice notice-info">No metrics file found. Run <code>python -m src.train</code> to create it.</div>
+{% else %}
+
+<section class="panel">
+  <h2>Model comparison <span class="muted small">(held-out test period)</span></h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr>
+      <th>Model</th><th class="num">Precision</th><th class="num">Recall</th><th class="num">F1</th>
+      <th class="num">ROC-AUC</th><th class="num">PR-AUC</th>
+    </tr></thead>
+    <tbody>
+    {% for r in metrics.comparison %}
+      <tr class="{{ 'row-selected' if r.model == metrics.primary.model }}">
+        <td>{{ r.model }}{% if r.model == metrics.primary.model %} <span class="badge badge-scheduled">SELECTED</span>{% endif %}</td>
+        <td class="num">{{ '%.2f'|format(r.precision) }}</td>
+        <td class="num">{{ '%.2f'|format(r.recall) }}</td>
+        <td class="num">{{ '%.2f'|format(r.f1) }}</td>
+        <td class="num">{{ '%.3f'|format(r.roc_auc) }}</td>
+        <td class="num">{{ '%.3f'|format(r.pr_auc) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="muted small mt">
+    Accuracy is not used to pick the model because only a small share of readings are failures:
+    a model that always predicts "no failure" would still score about {{ '%.0f'|format((1 - (metrics.confusion_matrix[1][0] + metrics.confusion_matrix[1][1]) / (metrics.split.test_rows)) * 100) }}% accuracy.
+    Precision, recall, F1 and PR-AUC show how well real failures are caught.
+  </p>
+</section>
+
+<section class="cards" style="grid-template-columns: repeat(5, 1fr)" aria-label="Selected model scores">
+  <div class="card"><div class="label">F1 score</div><div class="num">{{ '%.2f'|format(metrics.primary.f1) }}</div></div>
+  <div class="card"><div class="label">ROC-AUC</div><div class="num">{{ '%.3f'|format(metrics.primary.roc_auc) }}</div></div>
+  <div class="card"><div class="label">PR-AUC</div><div class="num">{{ '%.3f'|format(metrics.primary.pr_auc) }}</div></div>
+  <div class="card"><div class="label">Recall</div><div class="num">{{ '%.2f'|format(metrics.primary.recall) }}</div><div class="sub">Failures caught</div></div>
+  <div class="card"><div class="label">Precision</div><div class="num">{{ '%.2f'|format(metrics.primary.precision) }}</div><div class="sub">Alerts that were real</div></div>
+</section>
+
+<div class="grid-2">
+  <section class="panel">
+    <h2>Selected model</h2>
+    <table class="kv">
+      <tr><th>Algorithm</th><td>{{ metrics.algorithm }}</td></tr>
+      <tr><th>Version</th><td>{{ metrics.version }}</td></tr>
+      <tr><th>Trained at</th><td>{{ metrics.trained_at }}</td></tr>
+      <tr><th>Train rows</th><td>{{ metrics.split.train_rows }}</td></tr>
+      <tr><th>Test rows</th><td>{{ metrics.split.test_rows }} (readings after {{ metrics.split.cutoff }})</td></tr>
+      <tr><th>Top features</th><td>{{ metrics.top_features|join(', ') }}</td></tr>
+    </table>
+    {% if 'fallback' in metrics.algorithm %}
+    <p class="muted small mt">XGBoost was not installed when this model was trained, so scikit-learn's gradient boosting was used. Install XGBoost and run <code>python -m src.train</code> to use it.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <h2>Confusion matrix <span class="muted small">(test period)</span></h2>
+    {% set cm = metrics.confusion_matrix %}
+    <table class="cm">
+      <thead><tr><th></th><th>Predicted healthy</th><th>Predicted failure</th></tr></thead>
+      <tbody>
+        <tr><th>Actually healthy</th><td class="good">{{ cm[0][0] }}</td><td class="bad">{{ cm[0][1] }}</td></tr>
+        <tr><th>Actually failed</th><td class="bad">{{ cm[1][0] }}</td><td class="good">{{ cm[1][1] }}</td></tr>
+      </tbody>
+    </table>
+    <p class="muted small mt">{{ cm[1][1] }} failures caught, {{ cm[1][0] }} missed, {{ cm[0][1] }} false alarms.</p>
+  </section>
+</div>
+
+<div class="grid-2">
+  <section class="panel">
+    <h2>Failure type classifier</h2>
+    {% if metrics.failure_type %}
+    <p>Trained and tested on failure rows only ({{ metrics.failure_type.train_failures }} train, {{ metrics.failure_type.test_failures }} test), so the large "no failure" class does not inflate the score.</p>
+    <table class="kv">
+      <tr><th>Accuracy</th><td>{{ '%.2f'|format(metrics.failure_type.accuracy) }}</td></tr>
+      <tr><th>Weighted F1</th><td>{{ '%.2f'|format(metrics.failure_type.weighted_f1) }}</td></tr>
+      <tr><th>Macro F1</th><td>{{ '%.2f'|format(metrics.failure_type.macro_f1) }}</td></tr>
+      <tr><th>Test failures per type</th><td>{% for name, n in metrics.failure_type.support.items() %}{{ name }}: {{ n }}{{ ', ' if not loop.last }}{% endfor %}</td></tr>
+    </table>
+    <p class="muted small mt">Weighted F1 is high because most failures are one type. Macro F1 is lower because rare types have only a few test examples, so their scores are not reliable.</p>
+    {% else %}
+    <p>Weighted F1 <strong>{{ '%.2f'|format(metrics.failure_type_weighted_f1) }}</strong> on the test period.</p>
+    {% endif %}
+  </section>
+  <section class="panel">
+    <h2>Anomaly detector and RUL</h2>
+    <p><strong>Anomaly detection:</strong> flagged {{ metrics.anomaly.flagged }} test readings; overlap with real failures is {{ '%.0f'|format(metrics.anomaly.precision * 100) }}% precision and {{ '%.0f'|format(metrics.anomaly.recall * 100) }}% recall. It is a supporting signal only.</p>
+    <p><strong>Remaining useful life (experimental):</strong> mean error {{ '%.1f'|format(metrics.rul.mae) }} readings, against {{ '%.1f'|format(metrics.rul.baseline_mae) }} for a model that always predicts the average. Treat it as a rough indicator.</p>
+  </section>
+</div>
+
+{% if figures %}
+<section class="panel">
+  <h2>Evaluation plots</h2>
+  <div class="grid-2">
+    {% for file, title in figures %}
+    <figure style="margin: 0">
+      <img class="fig" src="{{ url_for('figures', filename=file) }}" alt="{{ title }}">
+      <figcaption class="muted small">{{ title }}</figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<p class="notice notice-info small">
+  Results come from a single time-based split of the demo dataset. The data is synthetic, so scores on real plant data can differ.
+</p>
+{% endif %}
+{% endblock %}

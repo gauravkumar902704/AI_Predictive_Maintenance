@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Dashboard{% endblock %} - AI Predictive Maintenance</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Crect width=%2716%27 height=%2716%27 rx=%273%27 fill=%27%232563eb%27/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <div class="layout">
+    <aside class="sidebar">
+      <a class="brand" href="{{ url_for('dashboard') }}">
+        <b>AI PREDICTIVE<br>MAINTENANCE</b>
+        <span>Machine health monitoring</span>
+      </a>
+      <nav aria-label="Main">
+        <ul class="nav">
+          {% for endpoint, label in menu %}
+          {% set active = request.endpoint == endpoint or (endpoint == 'machines' and request.endpoint == 'machine_page') %}
+          <li><a href="{{ url_for(endpoint) }}" class="{{ 'active' if active }}" {% if active %}aria-current="page"{% endif %}>{{ label }}</a></li>
+          {% endfor %}
+        </ul>
+      </nav>
+      <div class="side-foot">Model: {{ model_label }}</div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <span>{% block crumb %}{% endblock %}</span>
+        <span class="status"><span class="dot {{ 'on' if system_ok else 'off' }}"></span>{{ 'SYSTEM ONLINE' if system_ok else 'SYSTEM OFFLINE' }}</span>
+      </header>
+      <main class="content" id="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for category, message in messages %}
+          <div class="notice notice-{{ 'ok' if category == 'success' else 'info' }}" role="status">{{ message }}</div>
+          {% endfor %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+</body>
+</html>

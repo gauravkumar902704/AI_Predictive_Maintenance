@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% from "_macros.html" import risk_badge, health_badge, contribution_bars %}
+{% block title %}Machine Health Result{% endblock %}
+{% block crumb %}<a href="{{ url_for('predict') }}">Predict health</a> / Result{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Machine Health Result</h1>
+    <p>Machine {{ r.machine_id }} &middot; analysed {{ r.timestamp|shorttime }} &middot; {{ r.algorithm }} ({{ r.model_version }})</p>
+  </div>
+  <div class="btn-row">
+    <a class="btn btn-secondary" href="{{ url_for('predict', machine=r.machine_id) }}">Another prediction</a>
+    <a class="btn btn-secondary" href="{{ url_for('machine_page', machine_id=r.machine_id) }}">Open machine page</a>
+  </div>
+</div>
+
+{% if r.warnings %}
+<div class="notice notice-warn" role="alert">
+  <strong>Check these inputs:</strong>
+  <ul>{% for w in r.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<section class="hero {{ r.risk_level|lower }}" aria-label="Result">
+  <div>
+    <div class="k">Failure probability</div>
+    <div class="v big">{{ r.probability_percent }}%</div>
+    <div class="meter {{ r.risk_level|lower }}"><span style="width: {{ r.probability_percent }}%"></span></div>
+  </div>
+  <div>
+    <div class="k">Risk level</div>
+    <div class="v"><span class="badge badge-{{ r.risk_level|lower }} badge-lg">{{ r.risk_level }}</span></div>
+    <div class="muted small mt">Machine health: {{ health_badge(r.health_status) }}</div>
+  </div>
+  <div>
+    <div class="k">{% if r.risk_level == 'LOW' %}Failure type if one occurs{% else %}Likely failure{% endif %}</div>
+    <div class="v">{{ r.likely_failure_type }}</div>
+    <div class="muted small">{{ '%.0f'|format(r.likely_failure_type_prob * 100) }}% of failure-type probability</div>
+  </div>
+  <div>
+    <div class="k">Recommended action</div>
+    <div class="v" style="font-size: 1.05rem">{{ r.recommended_action }}</div>
+    <div class="muted small">Priority: {{ r.priority }}</div>
+  </div>
+</section>
+
+{% if r.is_anomaly %}
+<div class="notice notice-warn" role="alert"><strong>Abnormal operating behaviour detected</strong>
+  (anomaly level {{ r.anomaly_level }}, score {{ r.anomaly_score }}).</div>
+{% endif %}
+<p class="notice notice-info">{{ r.interpretation }}</p>
+
+<div class="grid-2-1">
+  <section class="panel">
+    <h2>Why is this machine at risk?</h2>
+    {% if r.top_factors %}
+      {{ contribution_bars(r.top_factors) }}
+      <p class="mt"><strong>Main contributing factors:</strong> {{ r.factor_summary }}.</p>
+      <p class="muted small">Share of the risk signal per sensor group. Each group is swapped for its typical value and the drop in the model's failure score is measured (a simple what-if explanation, not full SHAP).</p>
+    {% else %}
+      <p class="empty">{% if r.risk_level == 'LOW' %}Risk is low, so no sensor group needs explaining.{% else %}No single sensor group stands out.{% endif %}</p>
+    {% endif %}
+  </section>
+
+  <section class="panel rul">
+    <h2>Remaining useful life <span class="muted small">(experimental)</span></h2>
+    <div class="num">{{ r.estimated_rul }} <span class="muted small">readings</span></div>
+    <div class="meter {{ 'low' if r.rul_status == 'No immediate action' else 'high' }}"><span style="width: {{ r.rul_percent }}%"></span></div>
+    <p>{% if r.rul_status == 'Maintenance recommended' %}<strong>Maintenance recommended</strong>{% else %}{{ r.rul_status }}{% endif %}</p>
+    <p class="muted small">Capped at a fixed horizon. Treat it as a rough indicator, not an exact countdown.</p>
+  </section>
+</div>
+
+<div class="grid-2">
+  <section class="panel">
+    <h2>Input used</h2>
+    <table class="kv">
+      <tr><th>Air temperature</th><td>{{ r.inputs.air_temperature }} K</td></tr>
+      <tr><th>Process temperature</th><td>{{ r.inputs.temperature }} K</td></tr>
+      <tr><th>Rotational speed</th><td>{{ r.inputs.rotational_speed }} rpm</td></tr>
+      <tr><th>Torque</th><td>{{ r.inputs.torque }} Nm</td></tr>
+      <tr><th>Tool wear</th><td>{{ r.inputs.tool_wear }} min</td></tr>
+    </table>
+  </section>
+  <section class="panel">
+    <h2>Next step</h2>
+    {% if r.risk_level == 'LOW' %}
+      <p>No maintenance is needed right now. The reading was saved to this machine's history.</p>
+    {% else %}
+      <p>{{ r.recommended_action }}</p>
+      <a class="btn" href="{{ url_for('maintenance', machine=r.machine_id) }}">Create maintenance record</a>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

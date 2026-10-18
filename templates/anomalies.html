@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "_macros.html" import risk_badge, health_badge, anomaly_cell %}
+{% block title %}Anomalies{% endblock %}
+{% block crumb %}Anomalies{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Anomalies</h1>
+    <p>Machines whose latest readings look unusual compared with normal operation.</p>
+  </div>
+</div>
+
+<div class="cards" style="grid-template-columns: repeat(3, 1fr); max-width: 720px">
+  <div class="card {{ 'red' if machines else 'green' }}">
+    <div class="label">Abnormal now</div><div class="num">{{ machines|length }}</div>
+    <div class="sub">of {{ total }} machines</div>
+  </div>
+</div>
+
+<section class="panel">
+  <h2>Machines with abnormal behaviour</h2>
+  {% if machines %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Machine</th><th>Anomaly</th><th>Failure risk</th><th class="num">Failure probability</th><th>Health</th><th>Last checked</th></tr></thead>
+    <tbody>
+    {% for m in machines %}
+      <tr>
+        <td><a href="{{ url_for('machine_page', machine_id=m.machine_id) }}"><strong>{{ m.machine_id }}</strong></a></td>
+        <td>{{ anomaly_cell(m.anomaly_level, m.is_anomaly, m.anomaly_score) }}</td>
+        <td>{{ risk_badge(m.risk_level) }}</td>
+        <td class="num">{{ m.failure_probability|percent }}</td>
+        <td>{{ health_badge(m.health) }}</td>
+        <td class="small">{{ m.prediction_time|shorttime }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="small mt"><strong>How to read this:</strong> high risk plus an anomaly is the strongest reason to inspect a machine.
+  Low risk with an anomaly can mean a sensor issue or a fault the failure model has not seen before.</p>
+  {% else %}
+  <p class="empty">No machine shows abnormal behaviour right now.</p>
+  {% endif %}
+</section>
+
+{% if metrics and metrics.anomaly %}
+<p class="notice notice-info small">
+  The anomaly detector is a supporting signal. On the held-out test period it flagged {{ metrics.anomaly.flagged }} readings,
+  with about {{ '%.0f'|format(metrics.anomaly.precision * 100) }}% precision and {{ '%.0f'|format(metrics.anomaly.recall * 100) }}% recall against
+  real failures, so use it together with the failure risk, not instead of it.
+</p>
+{% endif %}
+{% endblock %}
